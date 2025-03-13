@@ -1,0 +1,324 @@
+---
+title: "An examination on the factors that attribute to the YPLL Rate in the counties of the United States"
+author: "Adam Wawrowski"
+date: "5/1/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ISLR2)
+library(glmnet)
+library(leaps)
+library(purrr)
+library(caret)
+```
+
+
+```{r pressure, echo=FALSE}
+Health <- read.csv('Health.csv')
+attach(Health)
+```
+
+# Introduction
+
+The topic in question revolves entirely around the Years of Potential Life Lost (YPLL) Rate. This is quite a general, but important statistic in understanding the state of the health system, individual lifestyle, and environment around the United States. What it all comes down to is this: the YPLL rate is based on how much premature deaths deviate from the mean survival age in the United States. There is a major difference between mortality rates and the YPLL rates: the weights on age. While mortality rates can show factors in deaths of older individuals, due to their innate physical health, the YPLL rate emphasizes factors in the deaths of younger individuals. Specifically, younger than the average life expectancy.  
+
+What I am studying in this paper is how different factors influence the YPLL rate and by how much. The focus will be placed on analyzing the relationships between the factors and the YPLL rate. How does average physical health and mental health change the YPLL rate and does one influence it more than the other?  
+
+As will be discussed later, there are detrimental errors found in the data due to pure contradiction of causal evidence and statistical correlation.  
+
+# Review of Literature
+Much of the research in the YPLL rate can be split in two categories: finding what factors most contribute to the rate, and the application of the rate in health policy.  
+
+Among the primary factors attributed to the YPLL rate, they can be primarily categorized into Individual Lifestyle & Behavior and Environment. These two categories attribute nearly 70% of all potential years lost [13].  
+
+In terms of individual lifestyle, the primary causes of premature deaths are well-known in today's society due to the emergence of social media. These are: tobacco & smoke, diet & exercise, and alcohol & drug use. According to the CDC and the Surgeon General's Report, consistent smokers lose nearly 10 years of their life [9]. In addition, found by the CDC, "Poor nutrition can hinder growth and development, while excessive calorie consumption can lead to obesity, especially when paired with too little physical activity. Inadequate physical activity also contributes to increased risk of conditions such as coronary heart disease, diabetes, and some cancers" [3]. The most commonly-known yet most popular cause of potential years lost is alcohol. Again, the CDC reports that nearly 88,000 deaths are caused by excessive alcohol use each year in the United States [2]. 
+
+In terms of environmental factors, the 3 major economic indicators are at play: Education, Employment, and Income. All three are connected with each other, and all are connected to YPLL rate. From a study in the Robert Wood Johnson FOundation, it was found that "higher levels of education can lead to a greater sense of control over one’s life, which is linked to better health, healthier lifestyle decisions, and fewer chronic conditions" [5]. Also, the life expectancy itself has been found to be correlated with education, where college graduates have a higher life expectancy of 9 years than high school dropouts [6]. Next, employment is directly related to health quality, as health insurance is one benefit provided by many jobs. This connects to income specifically. In another study published by the Robert Wood Johnson Foundation, it was found that "the "working poor" are less likely to have health insurance and access to preventive care than those with higher incomes, and are more likely to work in hazardous jobs" [14].  
+
+As opposed to other more general research, it was sought to use these more individual factors plus the Food Environment Index to attempt a prediction of the YPLL rate.
+
+# Data
+The data used in this paper is from the County Health Rankings & Roadmaps program by the University of Wisconsin Population Health Institute. It is compiled into an Excel sheet with multiple pages of data, descriptions, and rankings. The data encompasses nearly 250 variables focused entirely on health data for each county in the United States from 2018 to 2020. As explained by the CHRR entry, the data on death statistics is collected entirely from the National Center for Health Statistics (NCHS) and National Vital Statistics System (NVSS), which holds all information entered by counties.
+there are a few "categories" that the variables can be sorted into:
+
+| Deaths            | Health System| Individual Lifestyle| Environment|
+| ------------------|:---------------:|:-------------------:|-----------:|
+| Premature Deaths| Uninsured   | Poor or Fair Health | High School |
+| Alcohol Impaired Deaths| Physicians | Avg Physically Unhealthy Days| College|
+| Injury Deaths | Dentists|   Avg Physically Unhealthy Days | Unemployment|
+| | Mental Health Providers        |   Adult Smoking | Children in Poverty|
+| | Vaccinations   | Adult Obesity | Income Inequality|
+| | | Excessive Drinking | Food Environment Index|
+| | | Low Birth Weight | Access to Exercise |
+| | | Physical Inactivity | High School |  
+
+Among these, I have chosen variables primarily from "Individual Lifestyle" and the variable "Food Environment Index." These are listed below.  
+
+## Variables
+
+**YPLL Rate:** This represents the age-adjusted "Years of Potential Life Lost" per 
+100,000 people in the county. To find the YPLL rate, we take:
+
+$$
+\begin{aligned}
+\text{YPLL Rate per 100,000}=\frac{\sum{(\text{Average Life Expectency}-\text{Age at Death})}}{\text{Population}}*100,000
+\end{aligned}
+$$  
+
+There are many details that are important in understanding the YPLL rate:  
+  
+(1) The rate is averaged over a three-year period.  
+(2) The rate is age-adjusted: consider that older individuals are more likely to have health complications.  
+(3) The rate of a county only includes premature deaths of people that live in that county.  
+(4) The rate does not include deaths after the average life expectancy, which may raise concerns in other health areas.  
+  
+**Food Environment (FE) Index:** This index measures the healthiness of a food environment 
+on a scale of 1 (worst) to 10 (best). Factors that contribute to the FE index are proximity to healthy foods, income, and others.  
+  
+**Average Physically Unhealthy Days:** This variable simply measures the average amount of days per months that a person in the county is physically unhealthy.  
+  
+**Average Mentally Unhealthy Days:** Similar to the previous variable, this measures the average amount of days per months that a person in the county is mentally unhealthy. 
+
+**Percent Smoker:** This is the percent of population in the county that are currently smokers. The domain of this variable is the interval from 0 and 100. 
+  
+**Percent Low Birth Weight:** This is the percent of population in the county that are were born with a low birth weight, which is less than 2500 grams. The domain of this variable is the interval from 0 and 100.
+  
+**Percent Physical Inactivity:** This is the percent of population in the county that are physically inactive. This is measured by the percentage of population that report no physical activity. The domain of this variable is the interval from 0 and 100.      
+  
+**Percent Drinkers:** This is the percent of population in the county that are excessive drinkers. The domain of this variable is the interval from 0 and 100. 
+
+```{r}
+ypll <- Health[,"Years.of.Potential.Life.Lost.Rate"]
+feIndex <- Health[,"Food.Environment.Index"]
+avgPhysUn <- Health[,"Average.Number.of.Physically.Unhealthy.Days"]
+avgMentUn <- Health[,"Average.Number.of.Mentally.Unhealthy.Days"]
+percSmoke <- Health[,"X..Smokers"]
+percLowBirth <- Health[,"X..Low.birthweight"]
+percPhysIn <- Health[,"X..Physically.Inactive"]
+percDrink <- Health[,"X..Excessive.Drinking"]
+```
+
+
+# Method
+
+Firstly, I created a data frame with all the variables in question for simple access later. The variables are all numeric, so I did not need any dummy variables. As the next step, I filtered the data set out of any null data points using the [complete.cases()] cases function. This function creates a list of TRUE and FALSE statements for each row in the data frame: TRUE for a complete row, and FALSE otherwise. Then I just excluded the FALSE data from the data frame.  
+
+```{r}
+p <- data.frame(ypll, feIndex, avgPhysUn, avgMentUn, percSmoke, percLowBirth, percPhysIn, percDrink)
+#Created data frame to collect all variables into one set
+
+#find all rows that are incomplete & remove all incomplete rows
+p.clean <- p[complete.cases(p),]
+```  
+With a clean data set, I can take a glance at the summary and matrix of scatter plots. 
+```{r}
+#Summary of data
+summary(p.clean)
+pairs(p.clean)
+```
+
+
+
+To start, I theorized a full model of 7 predictors to setup a baseline:
+$$
+\begin{aligned}
+YPLL_{Rate}=&\beta_0+\beta_1*\text{FE Index} +\beta_2*\text{AvgUnPhysical} + \beta_3*\text{AvgUnMental}\ +\\ 
+& \beta_4*\text{%Smoker}
++ \beta_5*\text{%LowBirthWeight}  + \beta_6*\text{%PhysInactive} + \beta_7*\text{%Drinker}\\
+\\
+&\text{where %Smoker, %LowBirthWeight, %PhysInactive, %Drinker}\in[0,100] 
+\end{aligned}
+$$  
+This model will serve as a base point for our machine learning techniques: cross-validation, Lasso regression, and Best Subset Selection. Now, I incorporate the data into a simple linear regression, where the summary follows: 
+
+```{r, echo=FALSE}
+fullModel <- lm(ypll ~ ., data = p.clean)
+summary(fullModel)
+```
+As seen in the the summary above, I found that majority of the variables are found as statistically significant, with the exception of "Average Mental Health Days per month." We will see a commonality of this finding among the further techniques. Furthermore, our F-statistic finds the entire model as significant. More importantly though, the adjusted-R^2 implies that the model explains 68.0% of the variance in the "YPLL rate." As we have understood though, many problems may occur when fitting a linear regression on a full data set and applying it to the real world. Just to name a few, overfitting, underestimating test MSE, and general inaccuracy. First, I will perform 10-fold cross-validation to estimate the test MSE of this model: 
+
+```{r}
+set.seed(1)
+ctrl <- trainControl(method = "cv", number = 10)
+modelFull <- train(ypll ~ ., data = p.clean, method = "lm", trControl = ctrl)
+print(modelFull)
+```  
+I found that the full, simple linear regression has an estimated test RMSE of 1476.946, or an estimated test MSE of 2181369.49. I have setup the baseline estimated test MSE. Now, I can apply some machine learning techniques to attempt to find an improved model.  
+
+## Lasso
+I will start by finding the optimal Lasso regression: I chose this method over Ridge for its innate variable selection and the availability of a large data set. First, I split the data frame into a training and test data set in half.
+
+```{r, echo=FALSE}
+set.seed(1)
+index <- sample(1:dim(p.clean)[1], dim(p.clean)[1]/2)
+train <- p.clean[index,]
+test <- p.clean[-index,]
+#Splitting data set into training and testing for 
+```  
+
+Then, by using cross-validation, I plot a lambda grid and find the optimal lambda penalty as 12.32847. 
+```{r, echo = FALSE}
+#Lasso
+set.seed(1)
+train.test <- model.matrix(ypll~., data = train)
+grid <- 10 ^ seq(4, -2, length=100)
+x.test <- model.matrix(ypll~., data=test)
+
+lasso.cv <- cv.glmnet(train.test, train[, "ypll"], alpha = 1, lambda = grid, thresh=1e-12)
+lambda.lasso <- lasso.cv$lambda.min
+lambda.lasso
+plot(lasso.cv)
+```  
+
+After which, I fit the Lasso regression using the optimal lambda and find these results:
+
+```{r}
+set.seed(1)
+lasso.fit <- glmnet(train.test, train[, "ypll"], alpha =  1, lambda = grid, thresh=1e-12)
+lasso.coef <- predict(lasso.fit, type="coefficients", s=lambda.lasso)
+length(lasso.coef[lasso.coef!= 0])
+lasso.coef
+```  
+I found a Lasso regression that had selected 6 of the 7 variables with such coefficients above. Similarly as with the full, simple linear regression, the variable "Average Unhealthy Mental days per month" was excluded from the Lasso regression. 
+
+```{r, echo = FALSE}
+set.seed(1)
+lasso.pred <- predict(lasso.fit, newx=x.test, s=lambda.lasso)
+mean((test[, "ypll"] - lasso.pred)^2)
+```  
+
+I found that the estimated test RMSE of the Lasso regression is 1492.45804, and as follows, the estimated test MSE is 2227431.  
+
+## Best Subset Selection
+I then moved onto finding a model through Best Subset Selection. Due to the fact that we have less than 10 predictors, this approach may prove worthwhile. As a start, I conducted a fairly basic best subset selection process and found such results below: 
+
+```{r, echo = FALSE}
+#Use Best subset selection to check all models with 1 to 7 variables
+regit.full <- regsubsets(ypll ~ ., data = p.clean, nvmax = 7)
+reg.summary <- summary(regit.full)
+reg.summary
+```
+
+One way to find the best model among those chosen from the best subset selection is to use Adjusted R^2, Cp, and BIC. The graphs below plot the number of variables against each of these measurements:
+```{r, echo = FALSE}
+#Plot adjr, cp, bic
+par(mfrow=c(2,2), mar=c(4,4,1,1))
+
+plot(reg.summary$cp, xlab="Number of Variables", ylab="Cp", type="l")
+points(which.min(reg.summary$cp), reg.summary$cp[which.min(reg.summary$cp)], col = "red", pch = 20)
+       
+plot(reg.summary$bic,xlab="Number of Variables", ylab="BIC", type="l")
+points(which.min(reg.summary$bic), reg.summary$bic[which.min(reg.summary$bic)], col = "red", pch = 20)
+       
+plot(reg.summary$adjr2,xlab="Number of Variables", ylab="Adjusted RSq", type="l")
+points(which.max(reg.summary$adjr2), reg.summary$adjr2[which.max(reg.summary$adjr2)], col = "red", pch = 20)
+#Using adjr, cp, and bic to find how many variables for the best model in best subset selection
+```  
+
+Although adjusted R^2 suggests the 7-variable model, both Cp and BIC suggest the 6-variable model. As such, I chose to take a more direct route with 10-fold cross-validation on each model chosen by Best Subset Selection. Then, I can choose the model with the lowest cross-validation error.
+
+```{r, echo = FALSE}
+set.seed(1)
+#CV of Best Subset
+get_model_formula <- function(id, object, outcome){
+  # get models data
+  models <- summary(object)$which[id,-1]
+  # Get outcome variable
+  #form <- as.formula(object$call[[2]])
+  #outcome <- all.vars(form)[1]
+  # Get model predictors
+  predictors <- names(which(models == TRUE))
+  predictors <- paste(predictors, collapse = "+")
+  # Build model formula
+  as.formula(paste0(outcome, "~", predictors))
+}
+
+get_cv_error <- function(model.formula, data){
+  set.seed(1)
+  train.control <- trainControl(method = "cv", number = 10)
+  cv <- train(model.formula, data = data, method = "lm",
+              trControl = train.control)
+  cv$results$RMSE
+}
+#10-fold cross validation
+regit.ids <- 1:7
+cv.errors <-  map(regit.ids, get_model_formula, regit.full, "ypll") %>%
+  map(get_cv_error, data = p.clean) %>%
+  unlist()
+cv.errors
+which.min(cv.errors)
+```  
+
+The first line above indicates the cross-validation error of each model chosen by Best Subset Selection in order by number of variables: from 1 (left) to 7 (right). The model with the lowest cross-validation error is the model with 6 variables. The coefficients for this model are as follows: 
+
+```{r, echo = FALSE}
+coef(regit.full, 6)
+```  
+
+As with the Lasso regression, the variable "Average Unhealthy Mental days per month" is excluded from the model. By 10-fold cross-validation, the estimated test RMSE of this model is 1476.034, and the estimated test MSE is 217867.37. 
+
+# Results & Discussion
+
+After analysis of each model found my a simple linear regression, Lasso regression, and Best Subset Selection, I found that the Best Subset Selection has ever so slightly less estimated test MSE than the other two. The model I found is as follows:
+
+$$
+\begin{aligned}
+YPLL_{Rate}=& \ 5630.93042-679.99004*\text{FE Index} +246.97188*\text{AvgUnPhysical} \ + 235.55717*\text{%Smoker}\\
+&+ 246.18720*\text{%LowBirthWeight} + 25.02953*\text{%PhysInactive} - 43.16224*\text{%Drinker}\\
+\\
+&\text{where %Smoker, %LowBirthWeight, %PhysInactive, %Drinker}\in[0,100] 
+\end{aligned}
+$$  
+
+In terms of relationship, the model finds that, as would be expected, there is a negative relationship between YPLL rate and the Food-Environment Index of the county. Also, as expected, there is a positive relationship between YPLL rate and the percentage of low birth weights, physical inactivity, and the average number of unhealthy physical days per month in the county. Most importantly to notice, the model excludes the variable "Average Unhealthy Mental days per month," and that the model finds that there is a negative relationship between the percentage of drinkers in the county.  
+  
+There already exists paper after paper that suggests that excessive drinking is detrimental to health. As found by Jason Connor and Wayne Hall, "as consumption increased, the risk of death increased from stroke, coronary disease (excluding myocardial infarction), heart failure, fatal hypertensive disease, and fatal aortic aneurysm." The model I found only studies the correlation between YPLL rate and the percentage of excessive drinkers in the county, but this study and many others contradict it with pure causation. This suggests limitations in the statistical techniques or more likely, the data set. 
+
+Also, although the notion is more recent, there already exists evidence of causation between mental health and premature death. According to Dr. Elizabeth E. Piatt at Northeastern Ohio University, "they found that the mean number of years of potential life lost for decedents with serious and persistent mental illness was 14.5 (standard deviation ± 10.6) compared to 10.5 (± 6.7) for the general population. The mean age of death for the psychiatric patients was 73.4 (± 15.4) years compared to 79.6 (± 10.9) years." Similarly with the excessive drinking variable, there are clearly limitations. The variable of "Average Unhealthy Mental days per month" should not have been excluded. 
+
+# Conclusion
+
+With a model found, we can know predict the YPLL rate of a county in the US using primarily individual lifestyle factors and the Food Environment Index. Although we have research already done on the causality between the dependent and independent variables, this model can measure the change in numbers.  
+
+Of course, this model is highly dependent on the data set and the whether the techniques I used are appropriated in this context. We can see limitations of this model in some of the variables having incorrect relationships and being excluded when they should not have been. These limitations are supported by medical research.  
+
+Although this model is rather rudimentary, it opens up the possibility that we can create a more complex model to take an input vector of statistics about a county and predict the YPLL rate of that county. This more refined model would be an asset in health policy worldwide.
+
+# References
+
+[1] Burnet, N. G., Jefferies, S. J., Benson, R. J., Hunt, D. P., &amp; Treasure, F. P. (2005). Years of life lost (YLL) from cancer is an important measure of population burden — and should be considered when allocating research funds. British Journal of Cancer, 92(2), 241–245. https://doi.org/10.1038/sj.bjc.6602321  
+
+[2] Centers for Disease Control and Prevention. (2022, April 20). Excessive alcohol use. Centers for Disease Control and Prevention. Retrieved May 1, 2022, from https://www.cdc.gov/chronicdisease/resources/publications/factsheets/alcohol.htm?CDC_AA_refVal=https%3A%2F%2Fwww.cdc.gov%2Fchronicdisease%2Fresources%2Fpublications%2Faag%2Falcohol.htm  
+
+[3] Centers for Disease Control and Prevention. (2022, March 29). Division of Population Health. Centers for Disease Control and Prevention. Retrieved May 1, 2022, from https://www.cdc.gov/populationhealth/?CDC_AA_refVal=https%3A%2F%2Fwww.cdc.gov%2Fnccdphp%2Fdph%2Findex.html  
+
+[4] Connor, J., &amp; Hall, W. (n.d.). Thresholds for safer alcohol use might need lowering. Define_me. Retrieved May 1, 2022, from https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(18)30545-2/fulltext  
+
+[5] Education and health. RWJF. (2019, May 15). Retrieved May 1, 2022, from https://www.rwjf.org/en/library/research/2011/05/education-matters-for-health.html  
+
+[6] Education: It matters more to health than ever before. RWJF. (2019, July 26). Retrieved May 1, 2022, from https://www.rwjf.org/en/library/research/2014/01/education--it-matters-more-to-health-than-ever-before.html  
+
+[7] Elizabeth E. Piatt Ph.D.Mark R. Munetz M.D.Christian Ritter Ph.D., Ph.D., E. E. P., Search for more papers by this author, M.D., M. R. M., Ph.D., C. R., Dr. Piatt and Dr. Ritter are affiliated with the Department of Behavioral and Community Health Sciences and Dr. Munetz is with the Department of Psychiatry, Sherman, M. E., Bowersox, N. W., &amp; Piatt, E. E. (2010, July 1). An examination of premature mortality among decedents with serious mental illness and those in the general population. Psychiatric Services. Retrieved May 1, 2022, from https://ps.psychiatryonline.org/doi/full/10.1176/ps.2010.61.7.663  
+
+[8] Explore health rankings: Rankings Data &amp; Documentation. County Health Rankings &amp; Roadmaps. (n.d.). Retrieved May 1, 2022, from https://www.countyhealthrankings.org/explore-health-rankings/rankings-data-documentation  
+
+[9] The health consequences of smoking -- 50 years of progress: A report of the surgeon general. (2014). PsycEXTRA Dataset. https://doi.org/10.1037/e510072014-001  
+
+[10] Kassambara, kashka_ku, &amp; Sfd. (2018, March 11). Best subsets regression essentials in R. STHDA. Retrieved May 1, 2022, from http://sthda.com/english/articles/37-model-selection-essentials-in-r/155-best-subsets-regression-essentials-in-r  
+
+[11] McDonnell, S., Vossberg, K., Hopkins, R., &amp; Mittan, B. (1998). Using YPLL in health planning.  
+[12] Premature death. County Health Rankings &amp; Roadmaps. (n.d.). Retrieved May 1, 2022, from https://www.countyhealthrankings.org/explore-health-rankings/measures-data-sources/county-health-rankings-model/health-outcomes/length-of-life/premature-death-ypll  
+
+[13] Premature mortality in the United States: Public health issues in the use of years of potential life lost. (1986). PsycEXTRA Dataset. https://doi.org/10.1037/e371472004-001  
+
+[14] Work, workplaces and health. RWJF. (2019, July 26). Retrieved May 1, 2022, from https://www.rwjf.org/en/library/research/2011/05/work-and-health-.html  
+
+[15] Ypll: A summary measure of premature mortality used in measuring the ... (n.d.). Retrieved May 2, 2022, from https://uwphi.wiscweb.wisc.edu/wp-content/uploads/sites/316/2018/06/issueBriefv05n07.pdf  
+
+[16] Zach. (2020, November 4). K-fold cross validation in R (step-by-step). Statology. Retrieved May 1, 2022, from https://www.statology.org/k-fold-cross-validation-in-r/ 
+
+
+
+

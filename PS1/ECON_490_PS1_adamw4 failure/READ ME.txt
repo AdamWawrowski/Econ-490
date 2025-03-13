@@ -1,0 +1,7 @@
+I had not realized that I was not using R Markdown to create the HTML file. 
+I created the report by editing the HTML code instead.
+As such, I do not have an R Markdown file. This is entirely my mistake.
+I hope the R file with the code I used to answer the questions and the HTML is sufficient for PS 1 only.
+
+Thank you,
+Adam Wawrowski. adamw4.

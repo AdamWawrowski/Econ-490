@@ -1,0 +1,207 @@
+---
+title: |
+  | ECON 490 - Applied Machine Learning in Economics
+  | Problem Set 1 (100pts) - due date: Thursday, February 10
+author: "Adam Wawrowski (adamw4)"
+date: "2/12/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Answer 1
+
+a) We would expect the performance of a flexible statistical learning method to be better than an inflexible one in this situation. Through the Central Limit Theorem, a large enough n will easily approximate the true distribution.
+b) A flexible learning method would be worse than an inflexible one. There would be too much room for the method to find patterns that are due to pure chance.
+c) A flexible learning method would be better than an inflexible one. A flexible method is inherently more capable to find the non-linear patterns in the variables.
+d)  A flexible learning method would be worse than an inflexible one. An flexible method would connect to the high variable points. It would cause overfitting.
+
+
+# Answer 2
+a) This is a regression problem. We are using the inputs (profit, employees, industry) to predict a quantity, namely, the CEO salary. In this situation, we are more interested in inference (Want to show the relationship between the variables). n is 500 and p is 3.
+b) This is a classification problem. We want to use the inputs to classify a new product as a success or a failure. In particular, we are interested in prediction in terms of this classification. n is 20 and p is 13.
+c) This is a regression problem. We are trying to use a model to predict a quantity percent change in the USD/Euro exchange rate. We are more interested in prediction in this situation. n is 52 and p is 3.
+
+
+# Answer 3
+a)
+```{r}
+curve(2.5/(x-5), from = 5, to = 40, ylim = c(0, 2), type="l",  main="Bias-Variance", 
+      xlab="Flexibility", ylab="Variance", col = "red") 
+#squared bias
+
+curve(.01*(0.5*x^2-20*x+305), from = 2, to = 40, type="l",  main="main title", 
+      xlab="Flexibility", ylab="Variance", col = "blue", add = TRUE) 
+#test mse
+
+
+curve(1.6^(x-40)+.05, from = 2, to = 40, type="l",  main="main title", 
+      xlab="Flexibility", ylab="Variance", col = "orange", add = TRUE)
+#Variance
+
+curve(-((x-20)^3/5000)+1, from = 2, to = 40, type="l",  main="main title", 
+      xlab="Flexibility", ylab="Variance", col = "purple", add = TRUE) 
+#training mse
+
+abline(h = 1)
+#error
+
+legend(29, 1.5, legend=c("Training MSE", "Test MSE", "Squared Bias", 
+                         "Variance", "Error"), c("purple","blue","red","orange",
+                                                 "black"))
+```
+
+
+b) Irreducible error stays constant, because it is an inherent part of the true population model.
+Training MSE decreases as flexibility increases, because it will closely follow the training data points as flexibility goes up.
+Test MSE decreases to a minimum and then increases as flexibility increases due to the fact that at some point when MSE is at its minimum, the model will then start to misinterpret pure chance in the data as patterns.
+Bias decreases as flexibility increases, because it will connect the data points as closely as it can.
+Variance increases as flexibility increases, because the model will become flexible enough to jump up and down between points.
+
+
+# Answer 4
+a) Here it would be recommended to create a table (or choose any way want to provide your answer):
+
++------+-------+-------+-------+----------------------------+
+| Obs. | $X_1$ | $X_2$ | $X_3$ | $d\big(obs, (0,0,0) \big)$ |
++======+=======+=======+=======+============================+
+|  1)  |   0   |   3   |   0   |              3             |
++------+-------+-------+-------+----------------------------+
+|  2)  |   2   |   0   |   0   |              2             |
++------+-------+-------+-------+----------------------------+
+|  3)  |   0   |   1   |   3   |              3.162278      |
++------+-------+-------+-------+----------------------------+
+|  4)  |   0   |   1   |   2   |              2.236068      |
++------+-------+-------+-------+----------------------------+
+|  5)  |  -1   |   0   |   1   |              1.414214      |
++------+-------+-------+-------+----------------------------+
+|  6)  |   1   |   1   |   1   |             1.732051       |
++------+-------+-------+-------+----------------------------+
+
+b) The prediction with K = 1 is green. The closest point to (0, 0, 0) is (-1, 0, 1), which is classified as green.
+c) The prediction with K = 3 is red. The three closest points are classified as 1 green and 2 red. 2 out of 3 are red.
+d) The best value for K would be small, because a large value wouldn't be flexible enough to predict the Bayes' decision boundary.
+
+
+# Question 5 (applied)[30p for part (c)]
+This exercise relates to the College data set, It contains a number of variables for 777 different universities and colleges in the US. The variables are
+
+- Private: Public/private indicator
+- Apps: Number of applications received
+- Accept: Number of applicants accepted
+- Enroll: Number of new students enrolled
+- Top10perc: New students from top 10
+- Top25perc: New students from top 25
+- F.Undergrad: Number of full-time undergraduates
+- P.Undergrad: Number of part-time undergraduates
+- Outstate: Out-of-state tuition
+- Room.Board: Room and board costs
+- Books: Estimated book costs
+- Personal: Estimated personal spending
+- PhD: Percent of faculty with Ph.D.'s
+- Terminal: Percent of faculty with terminal degree
+- S.F.Ratio: Student/faculty ratio
+- perc.alumni: Percent of alumni who donate
+- Expend: Instructional expenditure per student
+- Grad.Rate: Graduation rate
+
+Before reading the data into R, it can be viewed in Excel or a text editor.
+
+a) Use the read.csv() function to read the data into R. Call the loaded data college. Make sure that you have the directory set to the correct location for the data. The R commands getwd() and setwd() may be helpful.
+
+```{r}
+college <- read.csv("College.csv")
+```
+
+
+b) Look at the data using the View() function. You should notice that the first column is just the name of each university. We don't really want R to treat this as data. However, it may be handy to have these names for later. Try the following commands:
+```{r}
+rownames(college) <- college[, 1]
+head(college)
+```
+
+You should see that there is now a row.names column with the name of each university recorded. This means that R has given each row a name corresponding to the appropriate university. R will not try to perform calculations on the row names. However, we still need to eliminate the first column in the data where the names are stored. Try
+
+```{r}
+rownames(college) <- college[, 1]
+college <- college[, -1]
+head(college)
+```
+
+Now you should see that the first data column is Private. Note that another column labeled row.names now appears before the Private column. However, this is not a data column but rather the name that R is giving to each row.
+
+c) 
+i. Use the summary() function to produce a numerical summary of the variables in
+the data set.
+```{r}
+summary(college)
+```
+
+ii. Use the pairs() function to produce a scatterplot matrix of the first ten columns
+or variables of the data. Recall that you can reference the first ten columns of a
+matrix A using A[,1:10].
+```{r}
+pairs(college[, 3:13])
+# Could not pair column 'Private' under a non-numeric argument error
+```
+
+iii. Use the plot() function to produce side-by-side boxplots of Outstate versus
+Private.
+```{r}
+boxplot(college$Outstate ~ college$Private)
+```
+
+
+iv. Create a new qualitative variable, called Elite, by binning the Top10perc
+variable. We are going to divide universities into two groups based on whether or
+not the proportion of students coming from the top 10% of their high school classes
+exceeds 50%.
+
+Use the summary() function to see how many elite universities there are. Now use the plot() function to produce side-by-side boxplots of Outstate versus Elite.
+```{r}
+Elite <- rep("No", nrow(college))
+Elite[college$Top10perc > 50] <- "Yes"
+Elite <- as.factor(Elite)
+college <- data.frame(college, Elite)
+
+summary(Elite)
+```
+
+v. Use the hist() function to produce some histograms with differing numbers of
+bins for a few of the quantitative variables. You may find the command par(mfrow
+= c(2, 2)) useful: it will divide the print window into four regions so that four
+plots can be made simultaneously. Modifying the arguments to this function will
+divide the screen in other ways.
+```{r}
+par(mfrow = c(2, 2))
+
+
+hist(college$Apps)
+hist(college$PhD)
+hist(college$Accept)
+hist(college$Enroll)
+```
+
+
+vi. Continue exploring the data, and provide a brief summary of what you discover.
+
+Firstly, I created two boxplots: both focused on showing the Instructional Expenditure per student. On the left, whether a school is private, and on the right, whether a school is elite.
+```{r}
+Elite <- rep("No", nrow(college))
+Elite[college$Top10perc > 50] <- "Yes"
+Elite <- as.factor(Elite)
+college <- data.frame(college, Elite)
+
+par(mfrow = c(1, 2))
+boxplot(college$Expend ~ college$Private)
+boxplot(college$Expend ~ college$Elite)
+```
+
+In the Private box plot, the data shows that private schools in this data set have a slightly higher instructional expenditure per student on average. There is a problem though: there are numerous outliers outside of the box plot.In the Elite box plot, it is much more apparent that the Elite schools in this data set have a higher instructional expenditure per student on average. Can we use this data in an inferential study?
+
+
+
+

@@ -1,0 +1,275 @@
+---
+title: "Problem Set 3"
+author: "Adam Wawrowski"
+date: "4/3/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(glmnet)
+library(leaps)
+```
+
+# Answer 1
+
+(a) Best subset selection will have the least training RSS, because it will incorporate all of the combinations of k predictors.
+
+(b) Best subset selection is more probably to have the smallest test RSS, but any of the selection methods could have the smallest by pure chance. 
+
+(c) i. True. All answers are by definition.
+    ii. True. 
+    iii. False.
+    iv. False.
+    v. False.
+
+# Answer 2
+
+(a) (iii) is correct. The lasso is less flexible than least squares due to a constraint on coefficients. This method is preferred when there is less overfitting resulting in a larger decrease in variance than the increase in bias.
+
+(b) (iii) is correct. The same reasons that the Lasso is (iii).
+
+(c) (ii) is correct. Non-linear models are inherently more flexible than least squares. Non-linear models are preferred when the increase in variance due to possible overfitting is less than the decrease in bias.
+
+# Answer 3
+
+(a) (iii) is correct. As \lambda increases, flexibility will decrease. 
+
+(b) (ii) is correct. As \lambda increase, variance and bias will interchange until a certain point where the test RSS is at its minimum. Then it will increase.
+
+(c) (iv) is correct. As \lambda increase, flexibility will decrease, and variance will always decrease.
+
+(d) (iii) is correct. As \lambda increase, flexibility will decrease, and variance will always decrease, and bias will always increase. 
+
+(e) (v) is correct. Nothing can change the irreducible error.
+
+# Answer 4
+
+```{r}
+College <- read.csv("College.csv")
+rownames(College) <- College[, 1]
+rownames(College) <- College[, 1]
+College <- College[, -1]
+```
+
+(a) 
+
+```{r}
+set.seed(1) 
+index <- sample(nrow(College), 0.5*nrow(College))
+train <- College[index, ]
+test <- College[-index, ]
+```
+
+(b) 
+
+```{r}
+modelFit = lm(Apps ~ ., data=train)
+summary(modelFit)
+
+modelPredict=predict(modelFit, newdata=test)
+error=mean((test$Apps-modelPredict)^2)
+error
+```
+(c)
+```{r}
+set.seed(1)
+xtrain = model.matrix(Apps~., data=train[,-1])
+ytrain = train$Apps
+xtest = model.matrix(Apps~., data=test[,-1])
+ytest = test$Apps
+
+ridgeFit = cv.glmnet(xtrain, ytrain, alpha = 0)
+plot(ridgeFit)
+
+ridgeLambda = ridgeFit$lambda.min
+ridgeLambda
+
+```
+Now we can fit the ridge regression use the lambda found by cross-validation.
+
+```{r}
+ridgePredict = predict(ridgeFit, s = ridgeLambda, newx = xtest)
+ridgeError = mean((ridgePredict-ytest)^2)
+ridgeError
+```
+(d) 
+```{r}
+set.seed(1)
+lassoFit = cv.glmnet(xtrain, ytrain, alpha=1)
+plot(lassoFit)
+
+lassoLambda = lassoFit$lambda.min
+lassoLambda
+```
+
+We can now find the Lasso model using this lambda.
+
+```{r}
+lassoPredict = predict(lassoFit, s = lassoLambda, newx = xtest)
+lassoError = mean((lassoPredict-ytest)^2)
+lassoError
+```
+This test error is higher than the error of the ridge regression.
+
+```{r}
+lassoCoeff = predict(lassoFit, type="coefficients", s=lassoLambda)[1:18,]
+lassoCoeff
+```
+
+# Answer 5
+
+(a) 
+
+```{r}
+X = rnorm(100)
+eps = rnorm(100)
+```
+
+(b) 
+```{r}
+Y = 1 + 2*X + 3*I(X^2) + 4*(X^3) + eps
+head(Y)
+```
+(c)
+```{r}
+full <- data.frame(y = X, x = Y)
+regfitFull <- regsubsets(Y ~ X + I(X^2) + I(X^3) + I(X^4) + I(X^5) + I(X^6) + I(X^7) + I(X^8) + I(X^9) + I(X^10), data = full, nvmax = 10)
+
+regSummary <- summary(regfitFull)
+par(mfrow = c(2, 2))
+
+plot(regSummary$cp, xlab = "Number of variables", ylab = "Cp", type = "l")
+points(which.min(regSummary$cp), regSummary$cp[which.min(regSummary$cp)], col = "red", cex = 2, pch = 20)
+
+plot(regSummary$bic, xlab = "Number of variables", ylab = "BIC", type = "l")
+points(which.min(regSummary$bic), regSummary$bic[which.min(regSummary$bic)], col = "red", cex = 2, pch = 20)
+
+plot(regSummary$adjr2, xlab = "Number of variables", ylab = "Adjusted R^2", type = "l")
+points(which.max(regSummary$adjr2), regSummary$adjr2[which.max(regSummary$adjr2)], col = "red", cex = 2, pch = 20)
+
+coef(regfitFull, which.max(regSummary$adjr2))
+
+```
+From this, we can conclude that the model with 3 predictors is the best model, where:
+
+$$
+\begin{aligned}
+\beta_0&=1.005598\\\
+\beta_1&=1.945481\\\
+\beta_2&=2.937796\\\
+\beta_3&=3.979218\\\
+\end{aligned}
+$$
+(d) 
+I will start with Forward Stepwise.
+```{r}
+regfitForward <- regsubsets(Y ~ X + I(X^2) + I(X^3) + I(X^4) + I(X^5) + I(X^6) + I(X^7) + I(X^8) + I(X^9) + I(X^10), data = full, nvmax = 10, method="forward") 
+regsumForward <- summary(regfitForward)
+
+par(mfrow=c(2,2))
+
+plot(regsumForward$cp, type="l", col=4, main="Forward Stepwise Selection", xlab = "# Variables", ylab = "Mallows Cp") 
+points(which.min(regsumForward$cp),regsumForward$cp[which.min(regsumForward$cp)], col=4, pch = 15, cex=2)
+
+plot(regsumForward$bic, type="l", col=6, main="Forward Stepwise Selection", xlab = "# Variables", ylab = "Bayes Information Criterion")
+points(which.min(regsumForward$bic),regsumForward$bic[which.min(regsumForward$bic)], col=6, pch = 16, cex=2)
+
+plot(regsumForward$adjr2, type="l", col=3, main="Forward Stepwise Selection", xlab = "# Variables", ylab = "Adjusted R Squared")
+points(which.max(regsumForward$adjr2),regsumForward$adjr2[which.max(regsumForward$adjr2)], col=3, pch = 17, cex=2)
+
+coef(regfitForward,which.min(regsumForward$bic))
+```
+Now for Backwards Stepwise,
+
+```{r}
+regfitBkwd <- regsubsets(Y ~ X + I(X^2) + I(X^3) + I(X^4) + I(X^5) + I(X^6) + I(X^7) + I(X^8) + I(X^9) + I(X^10), data = full, nvmax = 10, method="forward") 
+regsumBwkd <- summary(regfitBkwd)
+
+par(mfrow=c(2,2))
+
+plot(regsumBwkd$cp, type="l", col=4, main="backward Stepwise Selection", xlab = "# Variables", ylab = "Mallows Cp") 
+points(which.min(regsumBwkd$cp),regsumBwkd$cp[which.min(regsumBwkd$cp)], col=4, pch = 15, cex=2)
+
+plot(regsumBwkd$bic, type="l", col=6, main="backward Stepwise Selection", xlab = "# Variables", ylab = "Bayes Information Criterion")
+points(which.min(regsumBwkd$bic),regsumBwkd$bic[which.min(regsumBwkd$bic)], col=6, pch = 16, cex=2)
+
+plot(regsumBwkd$adjr2, type="l", col=3, main="backward Stepwise Selection", xlab = "# Variables", ylab = "Adjusted R Squared")
+points(which.max(regsumBwkd$adjr2),regsumBwkd$adjr2[which.max(regsumBwkd$adjr2)], col=3, pch = 17, cex=2)
+
+coef(regfitBkwd,which.min(regsumBwkd$bic))
+```
+The results are the exact same as in part (c).
+(e) 
+```{r}
+xMat <- model.matrix(Y ~ X + I(X^2) + I(X^3) + I(X^4) + I(X^5) + I(X^6) + I(X^7) + I(X^8) + I(X^9) + I(X^10), data = full)[, -1]
+
+cvLasso <- cv.glmnet(xMat, Y, alpha = 1)
+plot(cvLasso)
+
+bestLambda <- cvLasso$lambda.min
+bestLambda
+
+predict(cvLasso, s = bestLambda, type = "coefficients")[1:11, ]
+
+```
+Using a lambda of 0.4376141, we find a model with 1 prediction, such that:
+
+$$
+\begin{aligned}
+\beta_0&=0.0943185\\\
+\beta_1&=0.9708495
+\end{aligned}
+$$
+(f)
+```{r}
+newY = 1 + 7 * I(X^7) + eps 
+newFull = data.frame(y = newY, x = X)
+
+newRegFit <- regsubsets(newY ~ X + I(X^2) + I(X^3) + I(X^4) + I(X^5) + I(X^6) + I(X^7) + I(X^8) + I(X^9) + I(X^10), data = newFull, nvmax = 10)
+newRegSum <- summary(newRegFit)
+
+par(mfrow=c(2,2))
+
+plot(newRegSum$cp, type="l", col=4, main = "Best Subset", xlab = "# Variables", ylab = "Cp") 
+points(which.min(newRegSum$cp),newRegSum$cp[which.min(newRegSum$cp)], col=4, pch = 15, cex=2)
+
+plot(newRegSum$bic, type="l", col=6, main = "Best Subset", xlab = "# Variables", ylab = "BIC")
+points(which.min(newRegSum$bic),newRegSum$bic[which.min(newRegSum$bic)], col=6, pch = 16, cex=2)
+
+plot(newRegSum$adjr2, type="l", col=3, main = "Best Subset", xlab = "# Variables", ylab = "Adjusted R^2")
+points(which.max(newRegSum$adjr2),newRegSum$adjr2[which.max(newRegSum$adjr2)], col=3, pch = 17, cex=2)
+
+coef(newRegFit, which.min(newRegSum$cp))
+coef(newRegFit, which.min(newRegSum$bic))
+coef(newRegFit,which.max(newRegSum$adjr2))
+
+```
+Cp and Adjusted R^2 both suggest a two predictor model using:
+
+$$
+\begin{aligned}
+\beta_0&=0.96900052\\
+\beta_5&=-0.04639475\\
+\beta_7&=7.00583556\\
+\end{aligned}
+$$
+Now, the Lasso approach:
+```{r}
+xMat <- model.matrix(y ~ X + I(X^2) + I(X^3) + I(X^4) + I(X^5) + I(X^6) + I(X^7) + I(X^8) + I(X^9) + I(X^10), data = newFull)[, -1]
+
+cvLasso <- cv.glmnet(xMat, newY, alpha = 1)
+plot(cvLasso)
+
+bestLambda <- cvLasso$lambda.min
+bestLambda
+
+predict(cvLasso, s = bestLambda, type = "coefficients")[1:11, ]
+```
+Using a lambda of 36.38384, we find a 1 predictor model with such coefficients:
+$$
+\begin{aligned}
+\beta_0&=-0.9119081\\
+\beta_7&=6.7958485
+\end{aligned}
+$$

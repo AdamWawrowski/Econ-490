@@ -1,0 +1,240 @@
+---
+title: |
+  | ECON 490 - Applied Machine Learning in Economics
+  | Problem Set 2 (100pts) - due date: Thursday, February 24
+author: "Adam Wawrowski (adamw4)"
+date: "2/24/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Answer 1
+
+$$
+\begin{aligned}
+H_0:\:\beta_{TV}=\beta_{radio}=\beta_{newspaper}=0
+\end{aligned}
+$$
+
+$$\\[.005in]$$
+
+In context of the data, the p-values correspond to the null hypothesis that the variables of money spent on TV, radio, and newspaper advertisements have no effect on sales.
+
+$$\\[.005in]$$
+
+The p-value for the variable **TV ad expenditure** is very small, less than 0.0001. As such, we can reject the null hypothesis, concluding that money spent on TV advertisements have an effect on sales.
+
+The p-value for the variable **radio ad expenditure** is very small, less than 0.0001. As such, we can reject the null hypothesis, concluding that money spent on radio advertisements have an effect on sales.
+
+The p-value for the variable **newspaper ad expenditure** is very large, greater than 0.01, 0.05, and 0.1. As such, we fail to reject the null hypothesis, concluding that the money spent on newspaper advertisements do not have an effect on sales.
+
+# Answer 2
+
+(a) For a fixed value of IQ and GPA, high school graduates earn more, on average, than college graduates provided that the GPA is high enough. Let's observe the regression model under the conditions of a high school graduate and college graduate.
+
+$$\\[.005in]$$
+
+$$
+\begin{array}
+\\\hat{Salary}_{High School}=50+20X_1+0.07X_2+0.01X_4
+\\\hat{Salary}_{College}=85+10X_1+0.07X_2+0.01X_4
+\\\hat{Salary}_{High School}-\hat{Salary}_{College}=10X_1-35
+\end{array}
+$$
+
+$$\\[.005in]$$
+
+High school graduates will earn more, on average, than college graduates if this difference is positive. As such,
+
+$$\\[.005in]$$
+
+$$
+\begin{aligned}
+0<10X_1-35 \iff X_1>3.5
+\end{aligned}
+$$
+
+$$\\[.005in]$$
+
+After taking the difference, high school graduates will earn more, on average, than college graduates if their GPA is higher than 3.5
+
+(b) Substitute the inputs into the equation.
+
+```{r}
+50 + 20*(4) + 0.07*(110) + 35*(1) + 0.01*(110)*(4) - 10*(4)*(1)
+```
+
+The salary of a college graduate with IQ of 110 and a GPA of 4.0 is 137.1 thousand.
+
+(c) False, the value of the coefficient is not a measure of the significance of a term. The significance of a term is measured by a F-test or t-test in general cases.
+
+# Answer 3
+
+(a) 
+
+```{r}
+set.seed(1)
+x <- rnorm(100, 0, 1)
+head(x)
+```
+
+(b) 
+
+```{r}
+eps <- rnorm(100, 0, 0.25)
+head(eps)
+```
+
+(c) 
+
+```{r}
+y = -1 + 0.5*x + eps
+length(y)
+```
+
+The length of y is 100. The value of β0 is -1 and β1 is 0.5.
+
+(d) 
+
+```{r}
+plot(x,y)
+```
+
+The plot exhibits a positive linear trend.
+
+(e) 
+
+```{r}
+model <- lm(y ~ x)
+summary(model)
+```
+
+Both the estimated B0 and B1 are very close to the populations B0 and B1. Estimated B0 (-0.99309) and the population B0 (-1) differ by less than 0.007. Estimated B1 (0.48663) and the population B1 (0.5) differ by less than 0.02.
+
+(f) 
+
+```{r}
+plot(x,y)
+lines(x, model$fitted.values, col="red")
+curve(-1 + 0.5*x, add = TRUE, col="blue")
+legend(0.6, -1.5, legend=c("Population", "Least Squares Line"), c("blue","red"))
+```
+
+(g) 
+
+```{r}
+modelPoly <- lm(y ~ x + I(x^2))
+summary(modelPoly)
+```
+
+There is no evidence that suggests the quadratic term improves the model fit. Although the R-squared and Adjusted R-squared are quite very slightly higher, the F-statistic (evidence for overall significance) has dropped drastically. Also, the quadratic term is not statistically significant, and the RSE went up slightly.
+
+(h) We would expect the training RSS from fitting the linear equation to be smaller than the training RSS from fitting the quadratic equation. The linear model will more closely predict the population regression since the data came from a linear model.
+
+(i) We cannot necessarily know which model will have a higher or lower RSS, but we could predict that the quadratic model will have a higher RSS, because it will overfit due to the training set.
+
+# Answer 4
+
+```{r}
+library(ISLR2)
+attach(Carseats)
+```
+
+(a) 
+
+```{r}
+head(Carseats)
+```
+
+(b) 
+
+```{r}
+modelCar <- lm(Sales ~ US + ShelveLoc + Price + CompPrice + Price * CompPrice)
+summary(modelCar)
+```
+
+(c) **Sales** = 5.9476224 + 1.0701778 \* **(USYes)** + 4.7900970 \* **(ShelveLocGood)** + 1.8389298 \* **(ShelveLocMedium)** - 0.1082077 \* ***(Price)** + 0.0756914* **(CompPrice)** + 0.0001297 \* **(Price)** \* **(CompPrice)**
+
+(d) **USYes**: If the store is located in the US, then there is an estimated increase of 1.0701778 in sales.
+
+**ShelveLocGood**: If the shelving location for the car seats is good, then there is an estimated increase of 4.7900970 in sales.
+
+**ShelveLocMedium**: If the shelving location for the car seats is medium, then there is an estimated increase of 1.8389298 in sales.
+
+**Price**: For every \$1 increase of price, there is an estimated decrease of 0.1082077 in sales.
+
+**CompPrice**: For every \$1 increase of price charged by competitor, there is an estimated increase of 0.0756914 in sales.
+
+**Price \* CompPrice**: For every \$1 increase in the interaction between price charged and price charged by competitor, there is an estimated increase of 0.0001297 in sales.
+
+(e) We can reject the null hypothesis for the predictors UsYes, ShelveLocGood, ShelveLocMedium, Price, and CompPrice.
+
+(f) 
+
+```{r}
+modelCarS <- lm(Sales ~ US + ShelveLoc + Price + CompPrice)
+summary(modelCarS)
+```
+
+(g) In terms of R\^2, both models hover around 0.73. In context, the variables in the two models explain 73% of the variability in the sales of car seats. Also, the two models carry a RSE of about 1.475. Meaning, the regression models predict the sales of car seats with an average error of 1.475. The models in (b) and (f) fit the data very accurately, but not perfectly.
+
+(h) 
+
+```{r}
+confint(modelCarS)
+```
+
+# Answer 5
+
+(a) 
+
+```{r}
+exp(-6 + 0.05*40 + 3.5)/(1+exp(-6 + 0.05*40 + 3.5))
+```
+
+The probability that a student that studies for 40 hours and has an undergrad GPA of 3.5 gets an A in the class is 0.3775407.
+
+(b) We have to solve for the number of hours required to have a 50% chance of getting an A in the class.
+
+$$\\[.005in]$$
+
+$$
+\begin{aligned}
+0.5 =\frac{e^{-6+0.05x+3.5}}{1+e^{-6+0.05x+3.5}} \iff x=50
+\end{aligned}
+$$
+
+$$\\[.005in]$$
+
+To check, input into regression.
+
+```{r}
+exp(-6 + 0.05*50 + 3.5)/(1+exp(-6 + 0.05*50 + 3.5))
+```
+
+The student in part (a) would need to study 50 hours to have a 50% chance of getting an A in the class.
+
+# Answer 6
+
+(a) $$
+    \begin{aligned}
+    Odds\:of\:Defaulting=0.37=\frac{x}{1-x} \iff x=\frac{37}{137}=0.270073...
+    \end{aligned}
+    $$
+
+$$\\[.005in]$$
+
+The fraction of people with an odds of 0.37 of defaulting on their credit card payment is 0.270073.
+
+(b) $$
+    \begin{aligned}
+    Odds\:of\:Defaulting=x=\frac{0.16}{1-0.16} \iff x=\frac{4}{21}=0.19048...
+    \end{aligned}
+    $$
+
+$$\\[.005in]$$
+
+The odds that an individual will default on her credit card payment is 0.19048.

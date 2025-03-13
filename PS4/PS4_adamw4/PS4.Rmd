@@ -1,0 +1,121 @@
+---
+title: |
+  | ECON 490 - Applied Machine Learning in Economics
+  | Problem Set 4 (100pts) - due date: Thursday, April 21
+author: "Adam Wawrowski (adamw4)"
+date: "4/21/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ISLR)
+library(tree)
+library(randomForest)
+set.seed(1)
+```
+
+# Answer 1
+
+![](PS4_adamw4/Q1.jpg)  
+
+# Answer 2 
+
+![](PS4_adamw4/Q2.jpg) 
+
+# Answer 3
+
+When considering the majority vote approach, we must classify each estimate separately, and then we can combine each estimate by its classification. We know that:
+$$
+\begin{aligned}
+  P(\text{Class is Red}\mid X) > 0.50 \implies P(\text{Class is Red}\mid X) > P(\text{Class is Green}\mid X)
+\end{aligned}
+$$
+With this, we find that 6 out of 10 estimates classify that the class is red. Our final prediction of the class is Red.   
+     
+When considering the average probability approach, we must take the average of the estimates.
+
+$$
+\begin{aligned}
+  P_{avg}(\text{Class is Red}\mid x) = \frac{1}{n}\sum^n P(\text{Class is Red}\mid x) = 0.45\\
+  P_{avg}(\text{Class is Green}\mid x)=0.55
+\end{aligned}
+$$
+Our final prediction is that the class is Green.
+
+# Answer 4
+
+First, we find an initial model using recursive binary splitting on the data. Through this process, the data is converted into a tree using a top-down, greedy approach.  
+  
+Next, we using complexity pruning to find a set of best subtrees. In order to find the best tree in this set, we have to find an $\alpha$ such that the MSE is lowest.  
+  
+In order to find $\alpha$, we use k-fold Cross-Validation. Once we have $\alpha$, we can evaluate the complexity of the tree that minimizes Test MSE. 
+
+# Answer 5
+
+(a) 
+```{r}
+set.seed(1)
+train = sample(nrow(Carseats),nrow(Carseats)/2)
+d.train = Carseats[train,]
+test = Carseats[-train,"Sales"]
+```
+  
+(b)
+```{r}
+tree.carseats <- tree(Sales ~ ., data = Carseats, subset = train)
+summary(tree.carseats)
+plot(tree.carseats)
+text(tree.carseats)
+tree.pred <- predict(tree.carseats, Carseats[-train, ])
+mean((Carseats[-train, 'Sales'] - tree.pred) ^ 2)
+```
+
+Our test MSE is 4.530726.
+
+(c) 
+Now we run cross-validation on the tree.  
+```{r}
+set.seed(1)
+cv.carseats=cv.tree(tree.carseats) 
+plot(cv.carseats, type = "b")
+```  
+  
+According to the plot, a tree of size 6 is the optimal level of tree complexity.  
+```{r}
+prune.carseats = prune.tree(tree.carseats, best = 6)
+plot(prune.carseats)
+text(prune.carseats)
+```
+  
+This is the tree of optimal level of complexity.  
+```{r}
+tree.pred=predict(prune.carseats,Carseats[-train,])
+mean((tree.pred-Carseats[-train,'Sales'])^2)
+```
+Pruning our tree actually increased the test MSE, so this approach is not feasible. 
+
+(d) 
+```{r}
+x <- ncol(train) - 1
+bag.car = randomForest(Sales~.,data = d.train, mtry = 10, importance = TRUE)
+y.bag = predict(bag.car, newdata = Carseats[-train,])
+mean((y.bag-Carseats[-train,]$Sales)^2)
+```
+Our test MSE using bagging has decreased to 2.573933.
+
+```{r}
+importance(bag.car)
+```
+The most important variables are Price and ShelveLoc.
+
+(e)
+```{r}
+set.seed(1)
+rf.car = randomForest(Sales~ ., data = d.train, mtry = 3, importance = TRUE)
+y.rf = predict(rf.car, newdata = Carseats[-train,])
+mean((y.rf - Carseats[-train,]$Sales)^2)
+```
+Our test MSE is 2.960559, which is lower than our first tree, but not as much of an improvement as the bagging approach.
+
+
